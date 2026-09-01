@@ -68,6 +68,14 @@ export function updateAlbum(slug: string, input: CreateAlbumInput) {
   return { ...album }
 }
 
+export function listGenres() {
+  let counts = new Map<string, number>()
+  for (let album of albums) {
+    counts.set(album.genre, (counts.get(album.genre) ?? 0) + 1)
+  }
+  return [...counts.entries()].map(([name, count]) => ({ name, count }))
+}
+
 export function resetAlbumsForTest() {
   albums = seedAlbums.map((album) => ({ ...album }))
 }

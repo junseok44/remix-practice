@@ -108,6 +108,32 @@ describe('start here practice routes', () => {
     assert.match(await detail.text(), /Updated through a nested controller action/)
   })
 
+  it('lists genres from the composed route area', async () => {
+    let response = await router.fetch(request(routes.genres.index.href()))
+    let html = await response.text()
+
+    assert.equal(response.status, 200)
+    assert.match(html, /Genres/)
+    assert.match(html, /Modal jazz/)
+    assert.match(html, /Rock/)
+  })
+
+  it('lists albums that belong to a genre', async () => {
+    let response = await router.fetch(request(routes.genres.show.href({ genre: 'Modal jazz' })))
+    let html = await response.text()
+
+    assert.equal(response.status, 200)
+    assert.match(html, /Kind of Blue/)
+  })
+
+  it('returns a 404 response for a genre no album belongs to', async () => {
+    let response = await router.fetch(request(routes.genres.show.href({ genre: 'Vaporwave' })))
+    let html = await response.text()
+
+    assert.equal(response.status, 404)
+    assert.match(html, /Genre not found/)
+  })
+
   it('returns albums as JSON from a resource-style route', async () => {
     let response = await router.fetch(request(routes.apiAlbums.href()))
     let payload = (await response.json()) as { albums: Array<{ title: string }> }

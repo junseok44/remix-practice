@@ -180,7 +180,7 @@ export function NotFoundPage(handle: Handle<{ slug: string }>) {
   )
 }
 
-function AppShell(
+export function AppShell(
   handle: Handle<{
     children?: RemixNode
     title: string
