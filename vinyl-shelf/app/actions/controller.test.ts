@@ -75,6 +75,27 @@ describe('start here practice routes', () => {
     assert.match(html, /Album not found/)
   })
 
+  it('deletes an album and redirects to the album list', async () => {
+    let response = await router.fetch(
+      request(routes.albumDelete.href({ slug: 'kind-of-blue' }), { method: 'POST' }),
+    )
+
+    assert.equal(response.status, 303)
+    assert.equal(response.headers.get('location'), routes.albums.href())
+
+    let detail = await router.fetch(request(routes.album.href({ slug: 'kind-of-blue' })))
+    assert.equal(detail.status, 404)
+  })
+
+  it('returns a 404 response when deleting a missing album', async () => {
+    let response = await router.fetch(
+      request(routes.albumDelete.href({ slug: 'missing-album' }), { method: 'POST' }),
+    )
+
+    assert.equal(response.status, 404)
+    assert.match(await response.text(), /Album not found/)
+  })
+
   it('returns albums as JSON from a resource-style route', async () => {
     let response = await router.fetch(request(routes.apiAlbums.href()))
     let payload = (await response.json()) as { albums: Array<{ title: string }> }

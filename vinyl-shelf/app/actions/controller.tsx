@@ -2,7 +2,7 @@ import { createController } from 'remix/router'
 import { redirect } from 'remix/response/redirect'
 
 import { assetServer } from '../assets.ts'
-import { createAlbum, getAlbum, listAlbums } from '../data/albums.ts'
+import { createAlbum, deleteAlbum, getAlbum, listAlbums } from '../data/albums.ts'
 import { validateCreateAlbum } from '../data/validation.ts'
 import { routes } from '../routes.ts'
 import { AlbumDetailPage, AlbumsPage, HomePage, NotFoundPage } from '../ui/vinyl-shelf.tsx'
@@ -41,6 +41,14 @@ export default createController(routes, {
       }
 
       return context.render(<AlbumDetailPage album={album} />)
+    },
+    albumDelete(context) {
+      let deleted = deleteAlbum(context.params.slug)
+      if (!deleted) {
+        return context.render(<NotFoundPage slug={context.params.slug} />, { status: 404 })
+      }
+
+      return redirect(routes.albums.href(), 303)
     },
     apiAlbums() {
       return new Response(JSON.stringify({ albums: listAlbums() }), {

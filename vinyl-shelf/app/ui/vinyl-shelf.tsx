@@ -151,6 +151,11 @@ export function AlbumDetailPage(handle: Handle<{ album: Album }>) {
               <dd>server data</dd>
             </div>
           </dl>
+          <form method="post" action={routes.albumDelete.href({ slug: album.slug })}>
+            <button type="submit" mix={buttonStyle}>
+              Delete album
+            </button>
+          </form>
         </article>
       </AppShell>
     )

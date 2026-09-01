@@ -6,5 +6,6 @@ export const routes = route({
   albums: get('/albums'),
   albumsAction: post('/albums'),
   album: get('/albums/:slug'),
+  albumDelete: post('/albums/:slug/delete'),
   apiAlbums: get('/api/albums'),
 })

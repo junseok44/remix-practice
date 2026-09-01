@@ -60,6 +60,14 @@ export function createAlbum(input: CreateAlbumInput) {
   return { ...album }
 }
 
+export function deleteAlbum(slug: string) {
+  let index = albums.findIndex((item) => item.slug === slug)
+  if (index === -1) return false
+
+  albums.splice(index, 1)
+  return true
+}
+
 export function resetAlbumsForTest() {
   albums = seedAlbums.map((album) => ({ ...album }))
 }
