@@ -44,8 +44,23 @@ const seedAlbums: Album[] = [
 
 let albums: Album[] = seedAlbums.map((album) => ({ ...album }))
 
-export function listAlbums() {
-  return albums.map((album) => ({ ...album }))
+export type AlbumSort = 'title' | 'year'
+
+export function listAlbums(sort?: AlbumSort) {
+  let listed = albums.map((album) => ({ ...album }))
+
+  if (sort === 'title') return listed.sort((a, b) => a.title.localeCompare(b.title))
+  if (sort === 'year') return listed.sort((a, b) => a.year - b.year)
+  return listed
+}
+
+/**
+ * An unrecognized `?sort=` value falls back to the default order instead of
+ * erroring: the query string is a view preference, not submitted form data, so
+ * a stale or hand-edited URL should still render the list.
+ */
+export function parseAlbumSort(value: string | null): AlbumSort | undefined {
+  return value === 'title' || value === 'year' ? value : undefined
 }
 
 export function getAlbum(slug: string) {

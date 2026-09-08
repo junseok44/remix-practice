@@ -1,7 +1,13 @@
 import { createController } from 'remix/router'
 import { redirect } from 'remix/response/redirect'
 
-import { createAlbum, deleteAlbum, getAlbum, listAlbums } from '../../data/albums.ts'
+import {
+  createAlbum,
+  deleteAlbum,
+  getAlbum,
+  listAlbums,
+  parseAlbumSort,
+} from '../../data/albums.ts'
 import { validateCreateAlbum } from '../../data/validation.ts'
 import { routes } from '../../routes.ts'
 import { AlbumDetailPage, AlbumsPage, NotFoundPage } from '../../ui/vinyl-shelf.tsx'
@@ -9,7 +15,8 @@ import { AlbumDetailPage, AlbumsPage, NotFoundPage } from '../../ui/vinyl-shelf.
 export default createController(routes.albums, {
   actions: {
     index(context) {
-      return context.render(<AlbumsPage albums={listAlbums()} />)
+      let sort = parseAlbumSort(context.url.searchParams.get('sort'))
+      return context.render(<AlbumsPage albums={listAlbums(sort)} sort={sort} />)
     },
     create(context) {
       let result = validateCreateAlbum(context.formData)

@@ -4,7 +4,7 @@ import button from 'remix/ui/button'
 import input from 'remix/ui/input'
 
 import { AlbumPreview } from '../assets/album-preview.tsx'
-import type { Album } from '../data/albums.ts'
+import type { Album, AlbumSort } from '../data/albums.ts'
 import type { AlbumFieldErrors, AlbumFormValues } from '../data/validation.ts'
 import { routes } from '../routes.ts'
 import { Document } from './document.tsx'
@@ -89,12 +89,13 @@ export function HomePage(handle: Handle<{ albums: Album[] }>) {
 export function AlbumsPage(
   handle: Handle<{
     albums: Album[]
+    sort?: AlbumSort
     errors?: AlbumFieldErrors
     values?: AlbumFormValues
   }>,
 ) {
   return () => {
-    let { albums, errors = {}, values = emptyValues } = handle.props
+    let { albums, sort, errors = {}, values = emptyValues } = handle.props
 
     return (
       <AppShell
@@ -128,7 +129,10 @@ export function AlbumsPage(
             </button>
           </form>
 
-          <AlbumGrid albums={albums} />
+          <div mix={listColumnStyle}>
+            <SortForm sort={sort} />
+            <AlbumGrid albums={albums} />
+          </div>
         </section>
       </AppShell>
     )
@@ -280,6 +284,38 @@ function AlbumGrid(handle: Handle<{ albums: Album[] }>) {
       ))}
     </div>
   )
+}
+
+/**
+ * A `method="get"` form, so applying a sort is a plain navigation to
+ * `/albums?sort=...` that works with browser JavaScript switched off. The
+ * submitted value round-trips into `selected` below, otherwise the control
+ * would snap back to the default after every apply.
+ */
+function SortForm(handle: Handle<{ sort?: AlbumSort }>) {
+  return () => {
+    let { sort } = handle.props
+
+    return (
+      <form method="get" action={routes.albums.index.href()} mix={sortFormStyle}>
+        <label htmlFor={handle.id}>Sort by</label>
+        <select id={handle.id} name="sort" mix={sortSelectStyle}>
+          <option value="" selected={sort === undefined}>
+            Recently added
+          </option>
+          <option value="title" selected={sort === 'title'}>
+            Title
+          </option>
+          <option value="year" selected={sort === 'year'}>
+            Year
+          </option>
+        </select>
+        <button type="submit" class="shelf-cta" mix={button({ tone: 'primary' })}>
+          Apply
+        </button>
+      </form>
+    )
+  }
 }
 
 function Checkpoint(handle: Handle<{ title: string; body: string }>) {
@@ -498,6 +534,22 @@ const panelStyle = css({
   display: 'grid',
   gap: '14px',
   padding: '20px',
+})
+const listColumnStyle = css({ display: 'grid', gap: '16px' })
+const sortFormStyle = css({
+  alignItems: 'center',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  '& label': { fontWeight: 800 },
+})
+const sortSelectStyle = css({
+  background: 'var(--shelf-surface)',
+  border: '1px solid var(--shelf-field-line)',
+  borderRadius: 'var(--shelf-radius-sm)',
+  color: 'var(--shelf-ink)',
+  font: 'inherit',
+  padding: '10px 12px',
 })
 const fieldStyle = css({
   display: 'grid',

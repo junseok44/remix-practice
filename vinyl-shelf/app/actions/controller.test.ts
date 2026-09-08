@@ -12,6 +12,31 @@ function request(path: string, init?: RequestInit) {
   return new Request(`http://local.test${path}`, init)
 }
 
+async function createAlbum(title: string, year: number) {
+  let response = await router.fetch(
+    request(routes.albums.create.href(), {
+      method: 'POST',
+      body: new URLSearchParams({
+        title,
+        artist: 'Neil Young',
+        year: String(year),
+        genre: 'Rock',
+        notes: 'Added by a test to break the seeded ordering.',
+      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }),
+  )
+  assert.equal(response.status, 303)
+}
+
+/** The album titles in the order `/albums` renders them, which is the only
+ * place the sort is observable without browser JavaScript. */
+async function albumTitles(query?: string) {
+  let path = routes.albums.index.href() + (query ? `?${query}` : '')
+  let html = await (await router.fetch(request(path))).text()
+  return [...html.matchAll(/<h3>([^<]+)<\/h3>/g)].map((match) => match[1])
+}
+
 beforeEach(() => {
   resetAlbumsForTest()
 })
@@ -191,6 +216,50 @@ describe('rendering ui', () => {
     for (let id of labelIds) {
       assert.match(html, new RegExp(`id="${id}"[^>]*name="`))
     }
+  })
+
+  it('offers sorting through a GET form with a native select', async () => {
+    let response = await router.fetch(request(routes.albums.index.href()))
+    let html = await response.text()
+
+    assert.match(html, /<form method="get" action="\/albums"/)
+    assert.match(html, /<select id="[^"]+" name="sort"/)
+    assert.match(html, /<option value="year"/)
+  })
+
+  it('sorts the album list by year, then by title, from the sort query', async () => {
+    // The seeds are already in year order, so an extra album is needed before
+    // any of the three orderings can be told apart.
+    await createAlbum('Zuma', 1975)
+
+    assert.deepEqual(await albumTitles('sort=year'), [
+      'Kind of Blue',
+      'Zuma',
+      'Rumours',
+      'The Miseducation of Lauryn Hill',
+    ])
+    assert.deepEqual(await albumTitles('sort=title'), [
+      'Kind of Blue',
+      'Rumours',
+      'The Miseducation of Lauryn Hill',
+      'Zuma',
+    ])
+  })
+
+  it('falls back to the default order without a sort query or on an unknown one', async () => {
+    await createAlbum('Zuma', 1975)
+
+    let recentFirst = ['Zuma', 'Kind of Blue', 'Rumours', 'The Miseducation of Lauryn Hill']
+    assert.deepEqual(await albumTitles(), recentFirst)
+    assert.deepEqual(await albumTitles('sort=bogus'), recentFirst)
+  })
+
+  it('marks the applied sort as selected so the control does not reset', async () => {
+    let response = await router.fetch(request(`${routes.albums.index.href()}?sort=year`))
+    let html = await response.text()
+
+    assert.match(html, /<option value="year"[^>]*\sselected/)
+    assert.equal(/<option value="title"[^>]*\sselected/.test(html), false)
   })
 
   it('renders a page-level 404 through context.render with a status', async () => {
