@@ -1,5 +1,8 @@
 import * as assert from 'remix/assert'
-import { beforeEach, describe, it } from 'remix/test'
+// `remix/test` registers suites for the `remix test` runner, which needs
+// playwright. This app runs `node --test`, so the suite uses the node test
+// runner directly and keeps `remix/assert` for assertions.
+import { beforeEach, describe, it } from 'node:test'
 
 import { resetAlbumsForTest } from '../data/albums.ts'
 import { router } from '../router.ts'
@@ -134,6 +137,21 @@ describe('start here practice routes', () => {
 
     assert.equal(response.headers.get('X-Request-Id'), 'test-request-123')
     assert.equal(payload.requestId, 'test-request-123')
+  })
+
+  it('adds a response time header to HTML pages and JSON responses', async () => {
+    let page = await router.fetch(request(routes.albums.index.href()))
+    let json = await router.fetch(request(routes.apiAlbums.href()))
+
+    assert.match(page.headers.get('X-Response-Time') ?? '', /^\d+ms$/)
+    assert.match(json.headers.get('X-Response-Time') ?? '', /^\d+ms$/)
+  })
+
+  it('times static file responses too, because the timer sits above staticFiles()', async () => {
+    let response = await router.fetch(request('/favicon.svg'))
+
+    assert.equal(response.status, 200)
+    assert.match(response.headers.get('X-Response-Time') ?? '', /^\d+ms$/)
   })
 
   it('returns albums as JSON from a resource-style route', async () => {
