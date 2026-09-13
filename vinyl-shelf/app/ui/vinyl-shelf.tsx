@@ -54,6 +54,17 @@ export function HomePage(handle: Handle<{ albums: Album[] }>) {
           ) : null}
         </section>
 
+        {/*
+          Given a fallback, so the page does not wait for it. The hero,
+          checkpoints and recent entries all read fine without the numbers,
+          which is the chapter's test for keeping a frame non-blocking.
+        */}
+        <Frame
+          name="shelf-stats"
+          src={routes.stats.href()}
+          fallback={<p mix={leadStyle}>Loading shelf stats…</p>}
+        />
+
         <section mix={sectionStyle}>
           <div mix={sectionHeaderStyle}>
             <div>

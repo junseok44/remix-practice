@@ -44,8 +44,28 @@ const seedAlbums: Album[] = [
 
 let albums: Album[] = seedAlbums.map((album) => ({ ...album }))
 
+export interface ShelfStats {
+  albumCount: number
+  genreCount: number
+  latestYear: number | undefined
+}
+
 export function listAlbums() {
   return albums.map((album) => ({ ...album }))
+}
+
+export function getShelfStats(): ShelfStats {
+  // Genres are compared case-insensitively so 'Rock' and 'rock' do not count
+  // as two.
+  let genres = new Set(albums.map((album) => album.genre.toLowerCase()))
+
+  return {
+    albumCount: albums.length,
+    genreCount: genres.size,
+    // An empty shelf has no newest year. `Math.max()` of nothing is -Infinity,
+    // which would render as a real answer.
+    latestYear: albums.length === 0 ? undefined : Math.max(...albums.map((album) => album.year)),
+  }
 }
 
 export function getAlbum(slug: string) {

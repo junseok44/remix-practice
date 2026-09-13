@@ -1,10 +1,11 @@
 import { createController } from 'remix/router'
 
 import { assetServer } from '../assets.ts'
-import { listAlbums } from '../data/albums.ts'
+import { getShelfStats, listAlbums } from '../data/albums.ts'
 import { routes } from '../routes.ts'
 import { HomePage } from '../ui/vinyl-shelf.tsx'
 import { renderAlbumFeed } from './feed.ts'
+import { ShelfStatsRegion } from './shelf-stats.tsx'
 
 export default createController(routes, {
   actions: {
@@ -15,6 +16,9 @@ export default createController(routes, {
     },
     home(context) {
       return context.render(<HomePage albums={listAlbums()} />)
+    },
+    stats(context) {
+      return context.render(<ShelfStatsRegion stats={getShelfStats()} />)
     },
     feed() {
       return renderAlbumFeed(listAlbums())

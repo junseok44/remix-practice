@@ -392,6 +392,51 @@ describe('streaming ui with frames', () => {
     assert.equal(html.includes('aria-label="Primary"'), false)
   })
 
+  it('renders the shelf stats region without the document shell', async () => {
+    let response = await router.fetch(request(routes.stats.href()))
+    let html = await response.text()
+
+    assert.equal(response.status, 200)
+    assert.match(response.headers.get('content-type') ?? '', /text\/html/)
+    // The region belongs inside another page, so it must not carry the shell.
+    assert.equal(html.includes('<html'), false)
+    assert.equal(html.includes('aria-label="Primary"'), false)
+  })
+
+  it('registers a named, pending shelf stats frame on the home page', async () => {
+    let response = await router.fetch(request(routes.home.href()))
+    let html = await response.text()
+    let stats = Object.values(rmxData(html).f ?? {}).find((frame) => frame.name === 'shelf-stats')
+
+    assert.ok(stats, 'expected a frame named shelf-stats')
+    assert.equal(stats.src, routes.stats.href())
+    // The fallback makes the frame non-blocking, so the marker starts pending.
+    assert.equal(stats.status, 'pending')
+  })
+
+  it('counts albums, distinct genres and the newest year in the stats region', async () => {
+    // Rock is already on the shelf, so this album adds to the count without
+    // adding a genre.
+    await router.fetch(
+      request(routes.albums.create.href(), {
+        method: 'POST',
+        body: new URLSearchParams({
+          title: 'Zuma',
+          artist: 'Neil Young',
+          year: '2012',
+          genre: 'rock',
+          notes: 'Repeats an existing genre in a different case.',
+        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }),
+    )
+
+    let html = await (await router.fetch(request(routes.stats.href()))).text()
+    let values = [...html.matchAll(/<dd[^>]*>([^<]+)<\/dd>/g)].map((match) => match[1])
+
+    assert.deepEqual(values, ['4', '3', '2012'])
+  })
+
   it('never recommends the album the region belongs to', async () => {
     let response = await router.fetch(
       request(routes.albums.recommendations.href({ slug: 'kind-of-blue' })),
