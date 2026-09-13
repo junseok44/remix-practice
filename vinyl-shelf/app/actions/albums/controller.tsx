@@ -5,6 +5,7 @@ import { createAlbum, deleteAlbum, getAlbum, listAlbums } from '../../data/album
 import { validateCreateAlbum } from '../../data/validation.ts'
 import { routes } from '../../routes.ts'
 import { AlbumDetailPage, AlbumsPage, NotFoundPage } from '../../ui/vinyl-shelf.tsx'
+import { wantsJson } from '../wants-json.ts'
 
 export default createController(routes.albums, {
   actions: {
@@ -15,6 +16,15 @@ export default createController(routes.albums, {
       let result = validateCreateAlbum(context.formData)
 
       if (!result.ok) {
+        // The enhanced form asks for JSON so it can show inline errors without
+        // replacing the page. A plain browser submission still gets HTML.
+        if (wantsJson(context.request)) {
+          return new Response(JSON.stringify({ errors: result.errors, values: result.values }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          })
+        }
+
         return context.render(
           <AlbumsPage albums={listAlbums()} errors={result.errors} values={result.values} />,
           { status: 400 },

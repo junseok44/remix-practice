@@ -5,6 +5,7 @@ import { getAlbum, updateAlbum } from '../../../data/albums.ts'
 import { validateCreateAlbum } from '../../../data/validation.ts'
 import { routes } from '../../../routes.ts'
 import { NotFoundPage } from '../../../ui/vinyl-shelf.tsx'
+import { wantsJson } from '../../wants-json.ts'
 import { AlbumEditPage } from './page.tsx'
 
 export default createController(routes.albums.edit, {
@@ -49,7 +50,3 @@ export default createController(routes.albums.edit, {
     },
   },
 })
-
-function wantsJson(request: Request) {
-  return request.headers.get('Accept')?.includes('application/json') ?? false
-}

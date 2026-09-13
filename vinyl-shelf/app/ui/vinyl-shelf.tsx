@@ -1,8 +1,7 @@
 import type { Handle, RemixNode } from 'remix/ui'
 import { css } from 'remix/ui'
-import button from 'remix/ui/button'
-import input from 'remix/ui/input'
 
+import { AlbumCreateForm } from '../assets/album-create-form.tsx'
 import { AlbumPreview } from '../assets/album-preview.tsx'
 import { AlbumSearch } from '../assets/album-search.tsx'
 import { QueuePanel } from '../assets/queue-panel.tsx'
@@ -126,17 +125,14 @@ export function AlbumsPage(
         </section>
 
         <section mix={splitStyle}>
-          <form method="post" action={routes.albums.create.href()} mix={panelStyle}>
+          <div mix={panelStyle}>
             <h2 mix={headingStyle}>Add album</h2>
-            <TextField name="title" label="Title" value={values.title} error={errors.title} />
-            <TextField name="artist" label="Artist" value={values.artist} error={errors.artist} />
-            <TextField name="year" label="Year" value={values.year} error={errors.year} />
-            <TextField name="genre" label="Genre" value={values.genre} error={errors.genre} />
-            <TextArea name="notes" label="Notes" value={values.notes} error={errors.notes} />
-            <button type="submit" class="shelf-cta" mix={button({ tone: 'primary', size: 'lg' })}>
-              Add album
-            </button>
-          </form>
+            <AlbumCreateForm
+              actionHref={routes.albums.create.href()}
+              values={values}
+              errors={errors}
+            />
+          </div>
 
           <AlbumGrid albums={albums} />
         </section>
@@ -301,76 +297,6 @@ function Checkpoint(handle: Handle<{ title: string; body: string }>) {
   )
 }
 
-/**
- * `handle.id` is a stable identifier for this component instance, so a reusable
- * field can connect its label, control, and error message without an `id` prop.
- */
-function TextField(
-  handle: Handle<{
-    name: keyof AlbumFormValues
-    label: string
-    value?: string
-    error?: string
-  }>,
-) {
-  return () => {
-    let { name, label, value = '', error } = handle.props
-    let errorId = `${handle.id}-error`
-
-    return (
-      <div mix={fieldStyle}>
-        <label htmlFor={handle.id}>{label}</label>
-        <input
-          id={handle.id}
-          name={name}
-          defaultValue={value}
-          aria-describedby={error ? errorId : undefined}
-          aria-invalid={error ? 'true' : undefined}
-          mix={input({ size: 'lg' })}
-        />
-        {error ? (
-          <small id={errorId} mix={errorStyle}>
-            {error}
-          </small>
-        ) : null}
-      </div>
-    )
-  }
-}
-
-function TextArea(
-  handle: Handle<{
-    name: keyof AlbumFormValues
-    label: string
-    value?: string
-    error?: string
-  }>,
-) {
-  return () => {
-    let { name, label, value = '', error } = handle.props
-    let errorId = `${handle.id}-error`
-
-    return (
-      <div mix={fieldStyle}>
-        <label htmlFor={handle.id}>{label}</label>
-        <textarea
-          id={handle.id}
-          name={name}
-          rows={4}
-          defaultValue={value}
-          aria-describedby={error ? errorId : undefined}
-          aria-invalid={error ? 'true' : undefined}
-        />
-        {error ? (
-          <small id={errorId} mix={errorStyle}>
-            {error}
-          </small>
-        ) : null}
-      </div>
-    )
-  }
-}
-
 const shellStyle = css({
   minHeight: '100vh',
   background: 'var(--shelf-bg)',
@@ -515,17 +441,6 @@ const panelStyle = css({
   gap: '14px',
   padding: '20px',
 })
-const fieldStyle = css({
-  display: 'grid',
-  gap: '6px',
-  '& label': { fontWeight: 800 },
-  '& textarea': {
-    border: '1px solid var(--shelf-field-line)',
-    borderRadius: 'var(--shelf-radius-sm)',
-    font: 'inherit',
-    padding: '10px 12px',
-  },
-})
 const dangerButtonStyle = css({
   background: 'var(--shelf-danger)',
   border: 0,
@@ -536,7 +451,6 @@ const dangerButtonStyle = css({
   fontWeight: 800,
   padding: '10px 14px',
 })
-const errorStyle = css({ color: 'var(--shelf-danger)', fontWeight: 700 })
 const detailStyle = css({
   background: 'var(--shelf-surface)',
   border: '1px solid var(--shelf-line)',

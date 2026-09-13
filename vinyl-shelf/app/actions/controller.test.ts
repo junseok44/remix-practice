@@ -12,6 +12,22 @@ function request(path: string, init?: RequestInit) {
   return new Request(`http://local.test${path}`, init)
 }
 
+/** One failing add submission, so the only difference between the two content
+ * negotiation tests is the `Accept` header. */
+function invalidCreateRequest(headers: Record<string, string> = {}) {
+  return request(routes.albums.create.href(), {
+    method: 'POST',
+    body: new URLSearchParams({
+      title: '',
+      artist: 'Daft Punk',
+      year: 'not-a-year',
+      genre: 'French house',
+      notes: 'Validation check.',
+    }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...headers },
+  })
+}
+
 beforeEach(() => {
   resetAlbumsForTest()
 })
@@ -253,7 +269,7 @@ describe('interactivity', () => {
     let entries = clientEntries(await response.text())
     let names = entries.map((entry) => entry.exportName).sort()
 
-    assert.deepEqual(names, ['AlbumSearch', 'QueuePanel'])
+    assert.deepEqual(names, ['AlbumCreateForm', 'AlbumSearch', 'QueuePanel'])
   })
 
   it('passes route URLs and serializable data to the hydrated search', async () => {
@@ -336,6 +352,41 @@ describe('interactivity', () => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       }),
     )
+    let html = await response.text()
+
+    assert.equal(response.status, 400)
+    assert.match(response.headers.get('content-type') ?? '', /text\/html/)
+    assert.match(html, /Title is required/)
+  })
+
+  it('renders the hydrated add form as a working form without JavaScript', async () => {
+    let response = await router.fetch(request(routes.albums.index.href()))
+    let html = await response.text()
+    let entry = clientEntries(html).find((entry) => entry.exportName === 'AlbumCreateForm')
+
+    assert.ok(entry)
+    assert.equal(entry.props.actionHref, routes.albums.create.href())
+    assert.match(html, /<form method="post" action="\/albums"/)
+    assert.match(html, /name="notes"/)
+  })
+
+  it('answers the enhanced add form with JSON errors instead of an HTML page', async () => {
+    let response = await router.fetch(invalidCreateRequest({ Accept: 'application/json' }))
+    let payload = (await response.json()) as {
+      errors: Record<string, string>
+      values: Record<string, string>
+    }
+
+    assert.equal(response.status, 400)
+    assert.equal(response.headers.get('content-type'), 'application/json; charset=utf-8')
+    assert.match(payload.errors.title ?? '', /required/)
+    assert.match(payload.errors.year ?? '', /Year/)
+    // The values come back so the enhanced form can keep what was typed.
+    assert.equal(payload.values.artist, 'Daft Punk')
+  })
+
+  it('still answers a plain add submission with a re-rendered HTML page', async () => {
+    let response = await router.fetch(invalidCreateRequest())
     let html = await response.text()
 
     assert.equal(response.status, 400)

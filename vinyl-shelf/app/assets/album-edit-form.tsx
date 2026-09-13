@@ -10,13 +10,17 @@ import {
 import button from 'remix/ui/button'
 import input from 'remix/ui/input'
 
-type FieldName = 'title' | 'artist' | 'year' | 'genre' | 'notes'
+import {
+  submitAlbumForm,
+  type AlbumFieldErrors,
+  type AlbumFieldName as FieldName,
+} from './submit-album-form.ts'
 
 interface AlbumEditFormProps extends SerializableProps {
   /** The same URL the non-enhanced form posts to. */
   actionHref: string
   values: Record<FieldName, string>
-  errors: Partial<Record<FieldName, string>>
+  errors: AlbumFieldErrors
 }
 
 const fields: Array<{ name: FieldName; label: string }> = [
@@ -51,34 +55,16 @@ export const AlbumEditForm = clientEntry(
             handle.update()
 
             try {
-              let response = await fetch(form.action, {
-                body: new FormData(form),
-                method: form.method,
-                headers: { Accept: 'application/json' },
-                signal,
-              })
-
+              let result = await submitAlbumForm(form, signal)
               if (signal.aborted) return
 
-              if (response.ok) {
-                // The action answered with a redirect, which fetch followed.
-                // Follow the controller's destination instead of guessing one.
-                await navigate(response.url, { history: 'replace' })
+              if (result.ok) {
+                await navigate(result.url, { history: 'replace' })
                 return
               }
 
-              if (response.status === 400) {
-                let payload = (await response.json()) as {
-                  errors: Partial<Record<FieldName, string>>
-                }
-                if (signal.aborted) return
-
-                fieldErrors = payload.errors
-                formError = 'Please fix the highlighted fields.'
-              } else {
-                formError = `Save failed with status ${response.status}`
-              }
-
+              fieldErrors = result.errors
+              formError = result.message
               pending = false
               // The alert only exists after this update, so wait for the DOM.
               await handle.update()
