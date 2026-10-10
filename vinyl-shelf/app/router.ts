@@ -1,7 +1,6 @@
 import { createRouter, type RouterContext } from 'remix/router'
 import { cop } from 'remix/middleware/cop'
 import { csrf } from 'remix/middleware/csrf'
-import { formData } from 'remix/middleware/form-data'
 import { methodOverride } from 'remix/middleware/method-override'
 import { staticFiles } from 'remix/middleware/static'
 
@@ -11,6 +10,7 @@ import controller from './actions/controller.tsx'
 import loginController from './actions/login/controller.tsx'
 import { loadAuth } from './middleware/auth.ts'
 import { loadDatabase } from './middleware/database.ts'
+import { parseForms } from './middleware/form-data.ts'
 import { requestId } from './middleware/request-id.ts'
 import { render } from './middleware/render.tsx'
 import { loadSession } from './middleware/session.ts'
@@ -23,7 +23,7 @@ export const router = createRouter({
     // Rejects cross-site browser POSTs before any session is read or body parsed.
     cop(),
     loadSession(),
-    formData(),
+    parseForms(),
     methodOverride(),
     // After formData so the `_csrf` field is readable, and after the session
     // that stores the expected token.

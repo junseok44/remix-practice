@@ -16,7 +16,7 @@ interface AlbumEditFormProps extends SerializableProps {
   /** The same URL the non-enhanced form posts to. */
   actionHref: string
   values: Record<FieldName, string>
-  errors: Partial<Record<FieldName, string>>
+  errors: Partial<Record<FieldName | 'cover', string>>
   /** The album revision this form was built from. Submitted back as a hidden field. */
   revision: number
   /** Hydrated code cannot read server context, so the token arrives as a prop. */
@@ -53,6 +53,7 @@ export const AlbumEditForm = clientEntry(
       <form
         method="post"
         action={handle.props.actionHref}
+        enctype="multipart/form-data"
         mix={[
           formStyle,
           on('submit', async (event, signal) => {
@@ -85,6 +86,9 @@ export const AlbumEditForm = clientEntry(
                 if (signal.aborted) return
 
                 if (typeof payload.revision === 'number') revision = payload.revision
+                // The cover is saved; keeping it selected would upload it again.
+                let coverInput = form.elements.namedItem('cover')
+                if (coverInput instanceof HTMLInputElement) coverInput.value = ''
                 notice = 'saved'
                 pending = false
                 handle.update()
@@ -108,9 +112,13 @@ export const AlbumEditForm = clientEntry(
                 formError = 'Your session ended. Sign in again to save.'
               } else if (response.status === 403) {
                 formError = 'You can only edit albums you added.'
+              } else if (response.status === 413) {
+                let payload = (await response.json()) as { error?: string }
+                if (signal.aborted) return
+                formError = payload.error ?? 'The upload is too large.'
               } else if (response.status === 400) {
                 let payload = (await response.json()) as {
-                  errors: Partial<Record<FieldName, string>>
+                  errors: Partial<Record<FieldName | 'cover', string>>
                 }
                 if (signal.aborted) return
 
@@ -162,6 +170,8 @@ export const AlbumEditForm = clientEntry(
         ))}
 
         <NotesField value={handle.props.values.notes} error={fieldErrors.notes} />
+
+        <CoverField error={fieldErrors.cover} />
 
         <div mix={actionsStyle}>
           <button
@@ -235,6 +245,32 @@ function NotesField(handle: Handle<{ value: string; error?: string }>) {
           name="notes"
           rows={5}
           defaultValue={value}
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={error ? 'true' : undefined}
+        />
+        {error ? (
+          <small id={errorId} mix={errorStyle}>
+            {error}
+          </small>
+        ) : null}
+      </div>
+    )
+  }
+}
+
+function CoverField(handle: Handle<{ error?: string }>) {
+  return () => {
+    let { error } = handle.props
+    let errorId = `${handle.id}-error`
+
+    return (
+      <div mix={fieldStyle}>
+        <label htmlFor={handle.id}>Replace cover (PNG, JPEG, or WebP, up to 2 MB)</label>
+        <input
+          id={handle.id}
+          type="file"
+          name="cover"
+          accept="image/png,image/jpeg,image/webp"
           aria-describedby={error ? errorId : undefined}
           aria-invalid={error ? 'true' : undefined}
         />

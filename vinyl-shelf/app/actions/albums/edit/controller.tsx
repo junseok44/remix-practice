@@ -2,6 +2,7 @@ import { createController } from 'remix/router'
 import { redirect } from 'remix/response/redirect'
 
 import { canManageAlbum, getAlbum, updateAlbum } from '../../../data/albums.ts'
+import { readCover, removeCover, saveCover } from '../../../data/covers.ts'
 import { validateEditAlbum } from '../../../data/validation.ts'
 import { requireUser } from '../../../middleware/auth.ts'
 import { flashNotice } from '../../../middleware/session.ts'
@@ -27,41 +28,53 @@ export default createController(routes.albums.edit, {
     },
     async action(context) {
       let actorId = context.auth.identity.id
-      let result = validateEditAlbum(context.formData)
       // The enhanced form asks for JSON so it can stay on the page. A plain
       // browser submission gets HTML for every one of these outcomes.
       let asJson = wantsJson(context.request)
 
-      if (!result.ok) {
-        let album = await getAlbum(context.db, context.params.slug)
-        if (!album) {
-          if (asJson) return new Response('Album not found', { status: 404 })
-          return context.render(<NotFoundPage slug={context.params.slug} />, { status: 404 })
-        }
-        // Ownership is checked before field errors, so a stranger learns
-        // nothing about the form by submitting it.
-        if (!canManageAlbum(album, actorId)) {
-          if (asJson) return json({ error: 'forbidden' }, 403)
-          return context.render(<ForbiddenPage slug={album.slug} />, { status: 403 })
-        }
+      let album = await getAlbum(context.db, context.params.slug)
+      if (!album) {
+        if (asJson) return new Response('Album not found', { status: 404 })
+        return context.render(<NotFoundPage slug={context.params.slug} />, { status: 404 })
+      }
+      // Ownership is checked before field errors and before any upload is
+      // stored, so a stranger learns nothing and leaves no file behind.
+      if (!canManageAlbum(album, actorId)) {
+        if (asJson) return json({ error: 'forbidden' }, 403)
+        return context.render(<ForbiddenPage slug={album.slug} />, { status: 403 })
+      }
 
+      let result = validateEditAlbum(context.formData)
+      let cover = await readCover(context.formData.get('cover'))
+
+      if (!result.ok || !cover.ok) {
+        let errors = {
+          ...(result.ok ? {} : result.errors),
+          ...(cover.ok ? {} : { cover: cover.error }),
+        }
         if (asJson) {
-          return json({ errors: result.errors, values: result.values }, 400)
+          return json({ errors, values: result.values }, 400)
         }
 
         return context.render(
-          <AlbumEditPage album={album} errors={result.errors} values={result.values} />,
+          <AlbumEditPage album={album} errors={errors} values={result.values} />,
           { status: 400 },
         )
       }
 
+      let newCoverKey = cover.file ? await saveCover(cover.file) : null
       let outcome = await updateAlbum(
         context.db,
         actorId,
         context.params.slug,
         result.revision,
         result.value,
+        newCoverKey,
       )
+
+      // Whichever file the database no longer points at goes: the new one if
+      // the write was refused, the old one if it was replaced.
+      await removeCover(outcome.ok ? outcome.replacedCoverKey : newCoverKey)
 
       if (!outcome.ok && outcome.reason === 'not-found') {
         if (asJson) return new Response('Album not found', { status: 404 })

@@ -4,12 +4,15 @@ import * as f from 'remix/data-schema/form-data'
 
 import type { CreateAlbumInput } from './albums.ts'
 
-export type AlbumFieldErrors = Partial<Record<'title' | 'artist' | 'year' | 'genre' | 'notes', string>>
+/** `cover` is checked by `readCover`, after this parse, but reported beside the text fields. */
+export type AlbumFieldErrors = Partial<
+  Record<'title' | 'artist' | 'year' | 'genre' | 'notes' | 'cover', string>
+>
 
 export type AlbumFormValues = Record<'title' | 'artist' | 'year' | 'genre' | 'notes', string>
 
 export type CreateAlbumResult =
-  | { ok: true; value: CreateAlbumInput }
+  | { ok: true; value: CreateAlbumInput; values: AlbumFormValues }
   | { ok: false; errors: AlbumFieldErrors; values: AlbumFormValues }
 
 export type EditAlbumResult =
@@ -83,7 +86,7 @@ export function validateCreateAlbum(formData: FormData): CreateAlbumResult {
     return { ok: false, errors: collectFieldErrors(result.issues), values: readValues(formData) }
   }
 
-  return { ok: true, value: result.value }
+  return { ok: true, value: result.value, values: readValues(formData) }
 }
 
 /**

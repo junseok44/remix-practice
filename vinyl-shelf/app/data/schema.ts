@@ -22,6 +22,8 @@ export const albums = table({
     // Who may edit or delete this album. Signing in proves who a request comes
     // from; this column decides what that person may change.
     owner_id: c.integer(),
+    // A FileStorage key the app generated, never the uploaded filename.
+    cover_key: c.text(),
   },
   // Persistence invariants run for every caller, not just the album form.
   // Request validation may be skipped by a future code path; this cannot.

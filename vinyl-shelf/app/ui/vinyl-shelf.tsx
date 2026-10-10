@@ -3,6 +3,7 @@ import { css, Frame } from 'remix/ui'
 import button from 'remix/ui/button'
 import input from 'remix/ui/input'
 
+import { coverPlaceholderHref } from '../assets.ts'
 import { AlbumPreview } from '../assets/album-preview.tsx'
 import { AlbumSearch } from '../assets/album-search.tsx'
 import { QueuePanel } from '../assets/queue-panel.tsx'
@@ -134,7 +135,12 @@ export function AlbumsPage(
 
         <section mix={splitStyle}>
           {scope.user ? (
-            <form method="post" action={routes.albums.create.href()} mix={panelStyle}>
+            <form
+              method="post"
+              action={routes.albums.create.href()}
+              enctype="multipart/form-data"
+              mix={panelStyle}
+            >
               <h2 mix={headingStyle}>Add album</h2>
               <CsrfField />
               <TextField name="title" label="Title" value={values.title} error={errors.title} />
@@ -142,6 +148,7 @@ export function AlbumsPage(
               <TextField name="year" label="Year" value={values.year} error={errors.year} />
               <TextField name="genre" label="Genre" value={values.genre} error={errors.genre} />
               <TextArea name="notes" label="Notes" value={values.notes} error={errors.notes} />
+              <CoverField error={errors.cover} />
               <button type="submit" class="shelf-cta" mix={button({ tone: 'primary', size: 'lg' })}>
                 Add album
               </button>
@@ -180,6 +187,15 @@ export function AlbumDetailPage(
         notice={notice}
       >
         <article mix={detailStyle}>
+          <img
+            src={
+              album.cover_key ? routes.albums.cover.href({ slug: album.slug }) : coverPlaceholderHref
+            }
+            alt={album.cover_key ? `Cover of ${album.title}` : 'No cover yet'}
+            width={220}
+            height={220}
+            mix={coverStyle}
+          />
           <p mix={eyebrowStyle}>Route params</p>
           <h1 mix={titleStyle}>{album.title}</h1>
           <p mix={leadStyle}>
@@ -210,6 +226,14 @@ export function AlbumDetailPage(
             <a href={routes.albums.index.href()} mix={plainLinkStyle}>
               Back to albums
             </a>
+            {album.cover_key ? (
+              <a
+                href={routes.albums.cover.href({ slug: album.slug }, { download: '' })}
+                mix={plainLinkStyle}
+              >
+                Download cover
+              </a>
+            ) : null}
             {canManage ? (
               <form method="post" action={routes.albums.destroy.href({ slug: album.slug })}>
                 <input type="hidden" name="_method" value="DELETE" />
@@ -397,6 +421,34 @@ function Checkpoint(handle: Handle<{ title: string; body: string }>) {
  * `handle.id` is a stable identifier for this component instance, so a reusable
  * field can connect its label, control, and error message without an `id` prop.
  */
+function CoverField(handle: Handle<{ error?: string }>) {
+  return () => {
+    let { error } = handle.props
+    let errorId = `${handle.id}-error`
+
+    // A file input cannot be refilled after a failed submit; the browser
+    // forbids setting its value, so the user picks the file again.
+    return (
+      <div mix={fieldStyle}>
+        <label htmlFor={handle.id}>Cover (optional: PNG, JPEG, or WebP, up to 2 MB)</label>
+        <input
+          id={handle.id}
+          type="file"
+          name="cover"
+          accept="image/png,image/jpeg,image/webp"
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={error ? 'true' : undefined}
+        />
+        {error ? (
+          <small id={errorId} mix={errorStyle}>
+            {error}
+          </small>
+        ) : null}
+      </div>
+    )
+  }
+}
+
 function TextField(
   handle: Handle<{
     name: keyof AlbumFormValues
@@ -670,6 +722,12 @@ const dangerButtonStyle = css({
   padding: '10px 14px',
 })
 const errorStyle = css({ color: 'var(--shelf-danger)', fontWeight: 700 })
+const coverStyle = css({
+  aspectRatio: '1',
+  border: '1px solid var(--shelf-line)',
+  borderRadius: 'var(--shelf-radius-sm)',
+  objectFit: 'cover',
+})
 const detailStyle = css({
   background: 'var(--shelf-surface)',
   border: '1px solid var(--shelf-line)',

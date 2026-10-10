@@ -13,7 +13,10 @@ export const assetServer = createAssetServer({
     'app/*path': 'app/*path',
     'node_modules/*path': 'node_modules/*path',
   },
+  // allow/deny decide what the public can fetch, not just what gets compiled.
   allow: ['app/assets/**', 'node_modules/**'],
+  deny: ['app/**/*.test.*'],
+  files: { extensions: ['.svg'] },
   sourceMaps: isDevelopment ? 'external' : undefined,
   minify: !isDevelopment,
   watch: false,
@@ -23,3 +26,4 @@ export const assetServer = createAssetServer({
 // inside components.
 export const entryHref = routes.assets.href({ path: 'app/assets/entry.ts' })
 export const stylesheetHref = '/app.css'
+export const coverPlaceholderHref = await assetServer.getHref('app/assets/cover-placeholder.svg')

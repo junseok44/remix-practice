@@ -51,6 +51,21 @@ export class Browser {
     })
   }
 
+  /** Like `submit`, but multipart, the way a form with a file input posts. */
+  async upload(
+    path: string,
+    fields: Record<string, string | File | File[]>,
+    headers: Record<string, string> = {},
+  ) {
+    let body = new FormData()
+    body.append('_csrf', await this.csrfToken())
+    for (let [name, value] of Object.entries(fields)) {
+      for (let item of Array.isArray(value) ? value : [value]) body.append(name, item)
+    }
+    // No Content-Type here: Request sets multipart with its own boundary.
+    return this.fetch(path, { method: 'POST', body, headers })
+  }
+
   signIn(email: string, password: string, returnTo?: string) {
     return this.submit(routes.login.action.href(), {
       email,

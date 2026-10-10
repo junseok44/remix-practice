@@ -14,7 +14,7 @@ export interface CreateAlbumInput {
 }
 
 // `revision` is omitted so the column default starts every seed at 1.
-const seedAlbums: Omit<Album, 'id' | 'revision' | 'owner_id'>[] = [
+const seedAlbums: Omit<Album, 'id' | 'revision' | 'owner_id' | 'cover_key'>[] = [
   {
     slug: 'kind-of-blue',
     title: 'Kind of Blue',
@@ -50,13 +50,22 @@ export function getAlbum(db: Database, slug: string) {
   return db.findOne(albums, { where: { slug } })
 }
 
-export async function createAlbum(db: Database, ownerId: number, input: CreateAlbumInput) {
+export async function createAlbum(
+  db: Database,
+  ownerId: number,
+  input: CreateAlbumInput,
+  coverKey: string | null = null,
+) {
   // The slug is chosen by reading the rows that already exist, so the read and
   // the insert have to commit together. Two creates with the same title would
   // otherwise both pick the same suffix and one would hit the unique index.
   return db.transaction(async (tx) => {
     let slug = await uniqueSlug(tx, input.title)
-    return tx.create(albums, { slug, ...input, owner_id: ownerId }, { returnRow: true })
+    return tx.create(
+      albums,
+      { slug, ...input, owner_id: ownerId, ...(coverKey ? { cover_key: coverKey } : {}) },
+      { returnRow: true },
+    )
   })
 }
 
@@ -65,7 +74,8 @@ export function canManageAlbum(album: Album, userId: number) {
 }
 
 export type UpdateAlbumResult =
-  | { ok: true; album: Album }
+  /** `replacedCoverKey` is the file the caller should now remove, if any. */
+  | { ok: true; album: Album; replacedCoverKey: string | null }
   | { ok: false; reason: 'not-found' }
   | { ok: false; reason: 'forbidden' }
   /** `album` is the row as it stands now, so the form can show what it lost. */
@@ -82,6 +92,8 @@ export async function updateAlbum(
   slug: string,
   expectedRevision: number,
   input: CreateAlbumInput,
+  /** A newly stored cover. `null` keeps the current one. */
+  coverKey: string | null = null,
 ): Promise<UpdateAlbumResult> {
   return db.transaction(async (tx) => {
     let album = await getAlbum(tx, slug)
@@ -93,13 +105,16 @@ export async function updateAlbum(
 
     let updated = await tx.update(albums, album.id, {
       ...input,
+      ...(coverKey ? { cover_key: coverKey } : {}),
       revision: album.revision + 1,
     })
-    return { ok: true, album: updated }
+    return { ok: true, album: updated, replacedCoverKey: coverKey ? album.cover_key : null }
   })
 }
 
-export type DeleteAlbumResult = { ok: true } | { ok: false; reason: 'not-found' | 'forbidden' }
+export type DeleteAlbumResult =
+  | { ok: true; coverKey: string | null }
+  | { ok: false; reason: 'not-found' | 'forbidden' }
 
 export async function deleteAlbum(
   db: Database,
@@ -112,7 +127,7 @@ export async function deleteAlbum(
     if (!canManageAlbum(album, actorId)) return { ok: false, reason: 'forbidden' }
 
     await tx.delete(albums, album.id)
-    return { ok: true }
+    return { ok: true, coverKey: album.cover_key }
   })
 }
 

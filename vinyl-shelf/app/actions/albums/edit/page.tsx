@@ -1,6 +1,7 @@
 import type { Handle } from 'remix/ui'
 import { css } from 'remix/ui'
 
+import { coverPlaceholderHref } from '../../../assets.ts'
 import { AlbumEditForm } from '../../../assets/album-edit-form.tsx'
 import type { Album } from '../../../data/albums.ts'
 import type { AlbumFieldErrors, AlbumFormValues } from '../../../data/validation.ts'
@@ -47,6 +48,18 @@ export function AlbumEditPage(
               The page stays server-only. Just the form hydrates, so it can add pending state and
               inline errors on top of the same route action a plain browser submission uses.
             </p>
+
+            <img
+              src={
+                album.cover_key
+                  ? routes.albums.cover.href({ slug: album.slug })
+                  : coverPlaceholderHref
+              }
+              alt={album.cover_key ? `Current cover of ${album.title}` : 'No cover yet'}
+              width={160}
+              height={160}
+              mix={coverStyle}
+            />
 
             <AlbumEditForm
               actionHref={routes.albums.edit.action.href({ slug: album.slug })}
@@ -100,4 +113,11 @@ const eyebrowStyle = css({
 })
 
 const leadStyle = css({ color: 'var(--shelf-muted)', lineHeight: 1.7, margin: 0 })
+
+const coverStyle = css({
+  aspectRatio: '1',
+  border: '1px solid var(--shelf-line)',
+  borderRadius: 'var(--shelf-radius-sm)',
+  objectFit: 'cover',
+})
 
