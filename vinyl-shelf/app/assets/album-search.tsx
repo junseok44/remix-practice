@@ -1,5 +1,8 @@
 import { clientEntry, css, link, on, type Handle, type SerializableProps } from 'remix/ui'
+import { animateEntrance, animateExit, animateLayout, spring } from 'remix/ui/animation'
 import input from 'remix/ui/input'
+
+import { prefersReducedMotion } from './motion.ts'
 
 interface AlbumSearchProps extends SerializableProps {
   /** The route URL comes from the server so the browser never hardcodes it. */
@@ -88,7 +91,7 @@ export const AlbumSearch = clientEntry(
           {results.map((album) => (
             // `link(...)` makes the whole row behave like a link, including
             // role, keyboard activation, and client navigation.
-            <li key={album.slug} mix={link(album.href)}>
+            <li key={album.slug} mix={[link(album.href), ...resultMotion()]}>
               <strong>{album.title}</strong>
               <span>
                 {album.artist}, {album.year}
@@ -100,6 +103,18 @@ export const AlbumSearch = clientEntry(
     )
   },
 )
+
+// These mixins drive the Web Animations API, which a CSS reduced-motion media
+// query cannot switch off, so the preference is read here on every render.
+function resultMotion() {
+  let animate = typeof window !== 'undefined' && !prefersReducedMotion()
+
+  return [
+    animateEntrance(animate && { opacity: 0, transform: 'translateY(-4px)', ...spring('snappy') }),
+    animateExit(animate && { opacity: 0, transform: 'translateY(4px)', ...spring('snappy') }),
+    animateLayout(animate && { ...spring('bouncy'), size: false }),
+  ]
+}
 
 const searchStyle = css({
   display: 'grid',

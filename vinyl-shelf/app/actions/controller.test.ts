@@ -499,4 +499,15 @@ describe('animation', () => {
     // hydration surface beyond the same two islands as before.
     assert.deepEqual(names, ['AlbumSearch', 'QueuePanel'])
   })
+
+  it('serves the search with keyed motion that checks reduced motion', async () => {
+    let response = await router.fetch(
+      request(routes.assets.href({ path: 'app/assets/album-search.tsx' })),
+    )
+    let source = await response.text()
+
+    assert.equal(response.status, 200)
+    assert.match(source, /animateExit/)
+    assert.match(source, /prefersReducedMotion/)
+  })
 })
