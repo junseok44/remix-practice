@@ -3,15 +3,17 @@ import * as f from 'remix/data-schema/form-data'
 
 import type { CreateAlbumInput } from './albums.ts'
 
-export type AlbumFieldErrors = Partial<Record<'title' | 'artist' | 'year' | 'genre' | 'notes', string>>
+const fieldNames = ['title', 'artist', 'year', 'genre', 'notes', 'rating'] as const
 
-export type AlbumFormValues = Record<'title' | 'artist' | 'year' | 'genre' | 'notes', string>
+type FieldName = (typeof fieldNames)[number]
+
+export type AlbumFieldErrors = Partial<Record<FieldName, string>>
+
+export type AlbumFormValues = Record<FieldName, string>
 
 export type CreateAlbumResult =
   | { ok: true; value: CreateAlbumInput }
   | { ok: false; errors: AlbumFieldErrors; values: AlbumFormValues }
-
-const fieldNames = ['title', 'artist', 'year', 'genre', 'notes'] as const
 
 function requiredText(label: string) {
   return s
@@ -30,12 +32,24 @@ const yearField = s
   }, 'Year must be a number between 1900 and 2100')
   .transform((value) => Number(value.trim()))
 
+// An empty box means "not rated" and stores null; anything typed must be 1-5.
+const ratingField = s
+  .defaulted(s.string(), '')
+  .refine((value) => {
+    let trimmed = value.trim()
+    if (trimmed === '') return true
+    let rating = Number(trimmed)
+    return Number.isInteger(rating) && rating >= 1 && rating <= 5
+  }, 'Rating must be a whole number from 1 to 5')
+  .transform((value) => (value.trim() === '' ? null : Number(value.trim())))
+
 export const albumFormSchema = f.object({
   title: f.field(requiredText('Title')),
   artist: f.field(requiredText('Artist')),
   year: f.field(yearField),
   genre: f.field(requiredText('Genre')),
   notes: f.field(requiredText('Notes')),
+  rating: f.field(ratingField),
 })
 
 /**
@@ -58,7 +72,7 @@ export function validateCreateAlbum(formData: FormData): CreateAlbumResult {
   return { ok: true, value: result.value }
 }
 
-function issueField(issue: s.Issue): (typeof fieldNames)[number] | undefined {
+function issueField(issue: s.Issue): FieldName | undefined {
   let segment = issue.path?.[0]
   let key = typeof segment === 'object' && segment !== null ? segment.key : segment
   return fieldNames.find((name) => name === key)

@@ -10,9 +10,11 @@ export interface CreateAlbumInput {
   year: number
   genre: string
   notes: string
+  rating: number | null
 }
 
-const seedAlbums: Omit<Album, 'id'>[] = [
+// Seeds predate ratings and are inserted without one, so they stay unrated.
+const seedAlbums: Omit<Album, 'id' | 'rating'>[] = [
   {
     slug: 'kind-of-blue',
     title: 'Kind of Blue',

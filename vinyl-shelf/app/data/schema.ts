@@ -15,6 +15,7 @@ export const albums = table({
     year: c.integer().notNull(),
     genre: c.text().notNull(),
     notes: c.text().notNull(),
+    rating: c.integer().nullable(),
   },
   // Persistence invariants run for every caller, not just the album form.
   // Request validation may be skipped by a future code path; this cannot.
@@ -31,6 +32,9 @@ export const albums = table({
 
     if (typeof value.year === 'number' && (!Number.isInteger(value.year) || value.year < 1900 || value.year > 2100)) {
       issues.push({ message: 'year must be an integer between 1900 and 2100', path: ['year'] })
+    }
+    if (value.rating != null && !(Number.isInteger(value.rating) && value.rating >= 1 && value.rating <= 5)) {
+      issues.push({ message: 'rating must be an integer between 1 and 5', path: ['rating'] })
     }
     if (typeof value.slug === 'string' && value.slug === '') {
       issues.push({ message: 'slug must not be empty', path: ['slug'] })

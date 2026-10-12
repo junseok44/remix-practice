@@ -18,6 +18,7 @@ const emptyValues: AlbumFormValues = {
   year: '',
   genre: '',
   notes: '',
+  rating: '',
 }
 
 export function HomePage(handle: Handle<{ albums: Album[] }>) {
@@ -134,6 +135,12 @@ export function AlbumsPage(
             <TextField name="year" label="Year" value={values.year} error={errors.year} />
             <TextField name="genre" label="Genre" value={values.genre} error={errors.genre} />
             <TextArea name="notes" label="Notes" value={values.notes} error={errors.notes} />
+            <TextField
+              name="rating"
+              label="Rating (1-5, optional)"
+              value={values.rating}
+              error={errors.rating}
+            />
             <button type="submit" class="shelf-cta" mix={button({ tone: 'primary', size: 'lg' })}>
               Add album
             </button>
@@ -163,6 +170,7 @@ export function AlbumDetailPage(handle: Handle<{ album: Album }>) {
             {album.artist} made this {album.genre} record in {album.year}.
           </p>
           <p>{album.notes}</p>
+          <p mix={metaStyle}>{album.rating == null ? 'Not rated yet' : `Rated ${album.rating} / 5`}</p>
           <dl mix={detailsGridStyle}>
             <div>
               <dt>URL param</dt>
@@ -303,6 +311,7 @@ function AlbumGrid(handle: Handle<{ albums: Album[] }>) {
         <article key={album.slug} mix={cardStyle}>
           <p mix={metaStyle}>
             {album.genre} / {album.year}
+            {album.rating == null ? null : ` / ${album.rating} of 5`}
           </p>
           <h3>{album.title}</h3>
           <p>{album.artist}</p>

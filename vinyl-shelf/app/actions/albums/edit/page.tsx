@@ -22,6 +22,7 @@ export function AlbumEditPage(
       year: String(album.year),
       genre: album.genre,
       notes: album.notes,
+      rating: album.rating == null ? '' : String(album.rating),
     }
 
     return (

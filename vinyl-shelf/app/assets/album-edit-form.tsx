@@ -10,7 +10,7 @@ import {
 import button from 'remix/ui/button'
 import input from 'remix/ui/input'
 
-type FieldName = 'title' | 'artist' | 'year' | 'genre' | 'notes'
+type FieldName = 'title' | 'artist' | 'year' | 'genre' | 'notes' | 'rating'
 
 interface AlbumEditFormProps extends SerializableProps {
   /** The same URL the non-enhanced form posts to. */
@@ -109,6 +109,13 @@ export const AlbumEditForm = clientEntry(
         ))}
 
         <NotesField value={handle.props.values.notes} error={fieldErrors.notes} />
+
+        <Field
+          name="rating"
+          label="Rating (1-5, optional)"
+          value={handle.props.values.rating}
+          error={fieldErrors.rating}
+        />
 
         <button
           type="submit"

@@ -618,6 +618,82 @@ describe('data and validation', () => {
   })
 })
 
+describe('album rating', () => {
+  function postAlbum(rating: string) {
+    return router.fetch(
+      request(routes.albums.create.href(), {
+        method: 'POST',
+        body: new URLSearchParams({
+          title: 'Blue Train',
+          artist: 'John Coltrane',
+          year: '1957',
+          genre: 'Hard bop',
+          notes: 'Rating check.',
+          rating,
+        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }),
+    )
+  }
+
+  it('stores an empty rating as unrated instead of rejecting it', async () => {
+    let response = await postAlbum('')
+    assert.equal(response.status, 303)
+
+    let row = await db.findOne(albums, { where: { slug: 'blue-train' } })
+    assert.ok(row, 'expected the album row in the database')
+    assert.equal(row.rating, null)
+  })
+
+  it('stores a rating inside the range and shows it on the detail page', async () => {
+    let response = await postAlbum('4')
+    assert.equal(response.status, 303)
+
+    let detail = await router.fetch(request(routes.albums.show.href({ slug: 'blue-train' })))
+    assert.match(await detail.text(), /Rated 4 \/ 5/)
+  })
+
+  it('answers an out-of-range rating with a 400 and a field error', async () => {
+    let response = await postAlbum('7')
+    let html = await response.text()
+
+    assert.equal(response.status, 400)
+    assert.match(html, /Rating must be a whole number from 1 to 5/)
+    assert.equal(await db.findOne(albums, { where: { slug: 'blue-train' } }), null)
+  })
+
+  it('rejects an out-of-range rating written past the form', async () => {
+    await assert.rejects(
+      db.create(albums, {
+        slug: 'too-good',
+        title: 'Too Good',
+        artist: 'Nobody',
+        year: 2020,
+        genre: 'None',
+        notes: 'Should never be stored.',
+        rating: 7,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof DataTableValidationError)
+        assert.equal(error.metadata?.column, 'rating')
+        return true
+      },
+    )
+
+    assert.equal(await db.findOne(albums, { where: { slug: 'too-good' } }), null)
+  })
+
+  it('keeps unrated seed albums rendering on the list and detail pages', async () => {
+    let list = await router.fetch(request(routes.albums.index.href()))
+    assert.equal(list.status, 200)
+    assert.match(await list.text(), /Kind of Blue/)
+
+    let detail = await router.fetch(request(routes.albums.show.href({ slug: 'kind-of-blue' })))
+    assert.equal(detail.status, 200)
+    assert.match(await detail.text(), /Not rated yet/)
+  })
+})
+
 describe('animation', () => {
   it('ships spring physics as a plain CSS linear() transition', async () => {
     let response = await router.fetch(request(routes.home.href()))
