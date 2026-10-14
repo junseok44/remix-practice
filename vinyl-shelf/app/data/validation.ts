@@ -72,6 +72,35 @@ export const albumEditFormSchema = f.object({
   revision: f.field(revisionField),
 })
 
+export type DeleteIntent = 'delete' | 'delete-anyway'
+
+// Unknown values fall back to the guarded delete: a stale or edited form must
+// never turn into the one intent that skips the revision check.
+const deleteIntentField = s
+  .defaulted(s.string(), 'delete')
+  .transform((value): DeleteIntent => (value === 'delete-anyway' ? 'delete-anyway' : 'delete'))
+
+const deleteRevisionField = s
+  .defaulted(s.string(), '')
+  .transform((value) => {
+    let revision = Number(value.trim())
+    return Number.isInteger(revision) ? revision : 0
+  })
+
+export const albumDeleteFormSchema = f.object({
+  intent: f.field(deleteIntentField),
+  revision: f.field(deleteRevisionField),
+})
+
+/**
+ * The delete form has no field a user could fix, so it cannot fail: anything
+ * unreadable becomes a guarded delete against revision 0, which answers 409.
+ */
+export function validateDeleteAlbum(formData: FormData): { intent: DeleteIntent; revision: number } {
+  let result = s.parseSafe(albumDeleteFormSchema, formData)
+  return result.success ? result.value : { intent: 'delete', revision: 0 }
+}
+
 /**
  * Boundary validation for the album form. `parseSafe` keeps the failure path
  * a return value, which the actions translate into a 400 response.

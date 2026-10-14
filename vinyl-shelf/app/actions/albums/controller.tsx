@@ -2,7 +2,7 @@ import { createController } from 'remix/router'
 import { redirect } from 'remix/response/redirect'
 
 import { createAlbum, deleteAlbum, getAlbum, getRecommendations, listAlbums } from '../../data/albums.ts'
-import { validateCreateAlbum } from '../../data/validation.ts'
+import { validateCreateAlbum, validateDeleteAlbum } from '../../data/validation.ts'
 import { routes } from '../../routes.ts'
 import { AlbumDetailPage, AlbumsPage, NotFoundPage } from '../../ui/vinyl-shelf.tsx'
 import { AlbumRecommendations } from './recommendations.tsx'
@@ -49,9 +49,24 @@ export default createController(routes.albums, {
       )
     },
     async destroy(context) {
-      let deleted = await deleteAlbum(context.db, context.params.slug)
-      if (!deleted) {
+      let { intent, revision } = validateDeleteAlbum(context.formData)
+      let outcome = await deleteAlbum(
+        context.db,
+        context.params.slug,
+        intent === 'delete-anyway' ? null : revision,
+      )
+
+      if (!outcome.ok && outcome.reason === 'not-found') {
         return context.render(<NotFoundPage slug={context.params.slug} />, { status: 404 })
+      }
+
+      if (!outcome.ok) {
+        // The detail page comes back as it stands now, so what changed is the
+        // page itself; the notice says how many saves landed in between.
+        return context.render(
+          <AlbumDetailPage album={outcome.album} deleteConflict={{ seenRevision: revision }} />,
+          { status: 409 },
+        )
       }
 
       return redirect(routes.albums.index.href(), 303)

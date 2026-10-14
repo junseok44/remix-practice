@@ -119,7 +119,7 @@ describe('start here practice routes', () => {
     let response = await router.fetch(
       request(routes.albums.destroy.href({ slug: 'kind-of-blue' }), {
         method: 'POST',
-        body: new URLSearchParams({ _method: 'DELETE' }),
+        body: new URLSearchParams({ _method: 'DELETE', revision: '1' }),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       }),
     )
@@ -726,6 +726,86 @@ describe('forms and mutations', () => {
 
     let album = await db.findOne(albums, { where: { slug: 'kind-of-blue' } })
     assert.equal(album?.revision, 1)
+  })
+})
+
+describe('conflict-safe delete', () => {
+  function deleteAlbum(fields: Record<string, string>) {
+    return router.fetch(
+      request(routes.albums.destroy.href({ slug: 'kind-of-blue' }), {
+        method: 'POST',
+        body: new URLSearchParams({ _method: 'DELETE', ...fields }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }),
+    )
+  }
+
+  async function saveOnce() {
+    let response = await router.fetch(
+      request(routes.albums.edit.action.href({ slug: 'kind-of-blue' }), {
+        method: 'POST',
+        body: new URLSearchParams({
+          title: 'Kind of Blue',
+          artist: 'Miles Davis',
+          year: '1959',
+          genre: 'Modal jazz',
+          notes: 'Changed while the delete page was open.',
+          revision: '1',
+        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      }),
+    )
+    assert.equal(response.status, 303)
+  }
+
+  it('renders the revision and the delete intent into the detail page form', async () => {
+    let response = await router.fetch(request(routes.albums.show.href({ slug: 'kind-of-blue' })))
+    let html = await response.text()
+
+    assert.match(html, /<input type="hidden" name="revision" value="1"/)
+    assert.match(html, /name="intent" value="delete"/)
+  })
+
+  it('deletes with a current revision and redirects to the list', async () => {
+    let response = await deleteAlbum({ intent: 'delete', revision: '1' })
+
+    assert.equal(response.status, 303)
+    assert.equal(response.headers.get('location'), routes.albums.index.href())
+    assert.equal(await db.findOne(albums, { where: { slug: 'kind-of-blue' } }), null)
+  })
+
+  it('answers a stale revision with a 409 that shows the album as it is now', async () => {
+    await saveOnce()
+
+    let response = await deleteAlbum({ intent: 'delete', revision: '1' })
+    let html = await response.text()
+
+    assert.equal(response.status, 409)
+    assert.match(html, /This album changed after you opened it/)
+    assert.match(html, /revision 1 → 2/)
+    assert.match(html, /Changed while the delete page was open\./)
+    assert.match(html, /name="intent" value="delete-anyway"/)
+    assert.ok(await db.findOne(albums, { where: { slug: 'kind-of-blue' } }))
+  })
+
+  it('deletes past the conflict when the user chooses delete-anyway', async () => {
+    await saveOnce()
+    assert.equal((await deleteAlbum({ intent: 'delete', revision: '1' })).status, 409)
+
+    let response = await deleteAlbum({ intent: 'delete-anyway', revision: '1' })
+
+    assert.equal(response.status, 303)
+    assert.equal(response.headers.get('location'), routes.albums.index.href())
+    assert.equal(await db.findOne(albums, { where: { slug: 'kind-of-blue' } }), null)
+  })
+
+  it('treats an unrecognized delete intent as the guarded delete', async () => {
+    await saveOnce()
+
+    let response = await deleteAlbum({ intent: 'nuke', revision: '1' })
+
+    assert.equal(response.status, 409)
+    assert.ok(await db.findOne(albums, { where: { slug: 'kind-of-blue' } }))
   })
 })
 

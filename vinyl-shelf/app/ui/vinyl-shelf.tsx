@@ -146,9 +146,11 @@ export function AlbumsPage(
   }
 }
 
-export function AlbumDetailPage(handle: Handle<{ album: Album }>) {
+export function AlbumDetailPage(
+  handle: Handle<{ album: Album; deleteConflict?: { seenRevision: number } }>,
+) {
   return () => {
-    let { album } = handle.props
+    let { album, deleteConflict } = handle.props
 
     return (
       <AppShell
@@ -157,6 +159,9 @@ export function AlbumDetailPage(handle: Handle<{ album: Album }>) {
         activePath="/albums"
       >
         <article mix={detailStyle}>
+          {deleteConflict ? (
+            <DeleteConflictNotice album={album} seenRevision={deleteConflict.seenRevision} />
+          ) : null}
           <p mix={eyebrowStyle}>Route params</p>
           <h1 mix={titleStyle}>{album.title}</h1>
           <p mix={leadStyle}>
@@ -186,7 +191,8 @@ export function AlbumDetailPage(handle: Handle<{ album: Album }>) {
             </a>
             <form method="post" action={routes.albums.destroy.href({ slug: album.slug })}>
               <input type="hidden" name="_method" value="DELETE" />
-              <button type="submit" mix={dangerButtonStyle}>
+              <input type="hidden" name="revision" value={String(album.revision)} />
+              <button type="submit" name="intent" value="delete" mix={dangerButtonStyle}>
                 Delete album
               </button>
             </form>
@@ -213,6 +219,32 @@ export function AlbumDetailPage(handle: Handle<{ album: Album }>) {
           />
         </section>
       </AppShell>
+    )
+  }
+}
+
+function DeleteConflictNotice(handle: Handle<{ album: Album; seenRevision: number }>) {
+  return () => {
+    let { album, seenRevision } = handle.props
+    let saves = album.revision - seenRevision
+
+    return (
+      <section role="alert" mix={conflictStyle}>
+        <p>
+          <strong>This album changed after you opened it, so it was not deleted.</strong>{' '}
+          {seenRevision > 0 && saves > 0
+            ? `${saves === 1 ? 'One save' : `${saves} saves`} landed since then (revision ${seenRevision} → ${album.revision}).`
+            : `The delete form did not match the current revision ${album.revision}.`}{' '}
+          The page below shows the album as it stands now.
+        </p>
+        <form method="post" action={routes.albums.destroy.href({ slug: album.slug })}>
+          <input type="hidden" name="_method" value="DELETE" />
+          <input type="hidden" name="revision" value={String(album.revision)} />
+          <button type="submit" name="intent" value="delete-anyway" mix={dangerButtonStyle}>
+            Delete anyway
+          </button>
+        </form>
+      </section>
     )
   }
 }
@@ -569,6 +601,15 @@ const dangerButtonStyle = css({
   padding: '10px 14px',
 })
 const errorStyle = css({ color: 'var(--shelf-danger)', fontWeight: 700 })
+const conflictStyle = css({
+  border: '1px solid var(--shelf-danger)',
+  borderRadius: 'var(--shelf-radius-sm)',
+  display: 'grid',
+  gap: '12px',
+  justifyItems: 'start',
+  padding: '14px 16px',
+  '& p': { margin: 0 },
+})
 const detailStyle = css({
   background: 'var(--shelf-surface)',
   border: '1px solid var(--shelf-line)',
