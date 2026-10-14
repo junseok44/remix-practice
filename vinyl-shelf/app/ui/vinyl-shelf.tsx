@@ -167,10 +167,16 @@ export function AlbumsPage(
 }
 
 export function AlbumDetailPage(
-  handle: Handle<{ album: Album; canManage: boolean; notice?: string }>,
+  handle: Handle<{
+    album: Album
+    canManage: boolean
+    notice?: string
+    /** A failed transfer comes back with what was typed and why it failed. */
+    transfer?: { email: string; error: string }
+  }>,
 ) {
   return () => {
-    let { album, canManage, notice } = handle.props
+    let { album, canManage, notice, transfer } = handle.props
 
     return (
       <AppShell
@@ -220,6 +226,9 @@ export function AlbumDetailPage(
               </form>
             ) : null}
           </div>
+          {canManage ? (
+            <TransferForm slug={album.slug} email={transfer?.email} error={transfer?.error} />
+          ) : null}
         </article>
 
         <section mix={sectionStyle}>
@@ -242,6 +251,42 @@ export function AlbumDetailPage(
           />
         </section>
       </AppShell>
+    )
+  }
+}
+
+function TransferForm(handle: Handle<{ slug: string; email?: string; error?: string }>) {
+  return () => {
+    let { slug, email = '', error } = handle.props
+    let errorId = `${handle.id}-error`
+
+    return (
+      <form
+        method="post"
+        action={routes.albums.transfer.href({ slug })}
+        mix={[fieldStyle, transferStyle]}
+      >
+        <CsrfField />
+        <label htmlFor={handle.id}>Transfer to another account</label>
+        <input
+          id={handle.id}
+          type="email"
+          name="email"
+          placeholder="guest@vinyl.test"
+          defaultValue={email}
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={error ? 'true' : undefined}
+          mix={input({ size: 'lg' })}
+        />
+        {error ? (
+          <small id={errorId} mix={errorStyle}>
+            {error}
+          </small>
+        ) : null}
+        <button type="submit" mix={button({ tone: 'ghost' })}>
+          Transfer album
+        </button>
+      </form>
     )
   }
 }
@@ -647,6 +692,12 @@ const panelStyle = css({
   display: 'grid',
   gap: '14px',
   padding: '20px',
+})
+const transferStyle = css({
+  borderTop: '1px solid var(--shelf-line)',
+  justifyItems: 'start',
+  paddingTop: '18px',
+  '& input': { maxWidth: '360px', width: '100%' },
 })
 const fieldStyle = css({
   display: 'grid',

@@ -140,3 +140,82 @@ describe('auth: album ownership', () => {
     assert.ok(await db.findOne(albums, { where: { slug: 'kind-of-blue' } }))
   })
 })
+
+describe('auth: album transfer', () => {
+  async function ownerIdOf(slug: string) {
+    return (await db.findOne(albums, { where: { slug } }))?.owner_id
+  }
+
+  it('hands the album to another account and says so after the redirect', async () => {
+    let owner = await Browser.signedIn()
+    let before = await ownerIdOf('kind-of-blue')
+
+    let response = await owner.submit(routes.albums.transfer.href(kindOfBlue), {
+      email: ' Guest@Vinyl.test ',
+    })
+
+    assert.equal(response.status, 303)
+    assert.equal(response.headers.get('location'), routes.albums.show.href(kindOfBlue))
+    assert.notEqual(await ownerIdOf('kind-of-blue'), before)
+
+    // The former owner lands on the detail page: the flash names the new
+    // owner, and edit, delete, and transfer are gone.
+    let html = await (await owner.fetch(response.headers.get('location')!)).text()
+    assert.match(html, /Transferred Kind of Blue to Guest Listener\./)
+    assert.equal(html.includes('Edit album'), false)
+    assert.equal(html.includes('Delete album'), false)
+    assert.equal(html.includes('Transfer album'), false)
+
+    let guestView = await (await guest.fetch(routes.albums.show.href(kindOfBlue))).text()
+    assert.match(guestView, /Edit album/)
+  })
+
+  it('re-renders the form with a 400 for an email without an account', async () => {
+    let owner = await Browser.signedIn()
+    let before = await ownerIdOf('kind-of-blue')
+
+    let response = await owner.submit(routes.albums.transfer.href(kindOfBlue), {
+      email: 'nobody@vinyl.test',
+    })
+    let html = await response.text()
+
+    assert.equal(response.status, 400)
+    assert.match(html, /No account uses that email\./)
+    assert.match(html, /value="nobody@vinyl\.test"/)
+    assert.equal(await ownerIdOf('kind-of-blue'), before)
+  })
+
+  it('refuses a transfer from someone who does not own the album', async () => {
+    let before = await ownerIdOf('kind-of-blue')
+
+    let response = await guest.submit(routes.albums.transfer.href(kindOfBlue), {
+      email: 'guest@vinyl.test',
+    })
+
+    assert.equal(response.status, 403)
+    assert.equal(await ownerIdOf('kind-of-blue'), before)
+  })
+
+  it('answers a non-owner with 403 even for an unknown email', async () => {
+    // A 400 here would tell a stranger which emails have accounts.
+    let response = await guest.submit(routes.albums.transfer.href(kindOfBlue), {
+      email: 'nobody@vinyl.test',
+    })
+
+    assert.equal(response.status, 403)
+  })
+
+  it('rejects a transfer posted without the CSRF token', async () => {
+    let owner = await Browser.signedIn()
+    let before = await ownerIdOf('kind-of-blue')
+
+    let response = await owner.fetch(routes.albums.transfer.href(kindOfBlue), {
+      method: 'POST',
+      body: new URLSearchParams({ email: 'guest@vinyl.test' }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    })
+
+    assert.equal(response.status, 403)
+    assert.equal(await ownerIdOf('kind-of-blue'), before)
+  })
+})

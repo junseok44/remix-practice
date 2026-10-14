@@ -1,7 +1,7 @@
 import type { Database } from 'remix/data-table'
 
 import { albums, type AlbumRow } from './schema.ts'
-import { findUserByEmail, seedUsersIfEmpty, shelfOwnerEmail } from './users.ts'
+import { findUserByEmail, seedUsersIfEmpty, shelfOwnerEmail, type User } from './users.ts'
 
 export type Album = AlbumRow
 
@@ -113,6 +113,42 @@ export async function deleteAlbum(
 
     await tx.delete(albums, album.id)
     return { ok: true }
+  })
+}
+
+export type TransferAlbumResult =
+  | { ok: true; album: Album; recipient: User }
+  | { ok: false; reason: 'not-found' | 'forbidden' | 'unknown-recipient' | 'already-owner' }
+
+/**
+ * Hands the album to the account with `recipientEmail`. Ownership is checked
+ * before the recipient is looked up, so a non-owner learns nothing about which
+ * emails have accounts.
+ */
+export async function transferAlbum(
+  db: Database,
+  actorId: number,
+  slug: string,
+  recipientEmail: string,
+): Promise<TransferAlbumResult> {
+  return db.transaction(async (tx) => {
+    let album = await getAlbum(tx, slug)
+    if (!album) return { ok: false, reason: 'not-found' }
+    if (!canManageAlbum(album, actorId)) return { ok: false, reason: 'forbidden' }
+
+    let email = recipientEmail.trim().toLowerCase()
+    let recipient = email === '' ? null : await findUserByEmail(tx, email)
+    if (!recipient) return { ok: false, reason: 'unknown-recipient' }
+    if (recipient.id === album.owner_id) return { ok: false, reason: 'already-owner' }
+
+    // The revision moves too, so an edit form the old owner still has open
+    // is treated as stale rather than as a write from someone who lost access.
+    let updated = await tx.update(albums, album.id, {
+      owner_id: recipient.id,
+      revision: album.revision + 1,
+    })
+    let { password_hash: _, ...user } = recipient
+    return { ok: true, album: updated, recipient: user }
   })
 }
 

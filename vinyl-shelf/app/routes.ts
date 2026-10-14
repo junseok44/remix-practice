@@ -9,6 +9,7 @@ export const routes = route({
     show: get('/albums/:slug'),
     recommendations: get('/albums/:slug/recommendations'),
     destroy: del('/albums/:slug'),
+    transfer: post('/albums/:slug/transfer'),
     edit: form('/albums/:slug/edit'),
   },
   login: form('/login'),
